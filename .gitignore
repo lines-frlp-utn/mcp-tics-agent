@@ -4,3 +4,18 @@
 
 # LangGraph
 .langgraph_api/
+
+# Virtual environment
+*\venv
+
+# Byte-compiled / optimized / DLL files
+__pycache__
+*.py[cod]
+*$py.class
+
+# Secret files
+*.env
+*.secret
+
+# Pytest cache
+.pytest_cache/
