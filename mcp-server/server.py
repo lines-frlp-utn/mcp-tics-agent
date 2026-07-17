@@ -1,14 +1,14 @@
-import os
-
 from mcp.server.fastmcp import FastMCP
+
+from config import conf
 
 
 # Create a FastMCP instance with the specified host and
 # port, allowing connections from other Docker containers
 mcp = FastMCP(
-    "MCP Server - LINES",
-    host=os.environ.get("MCP_HOST", "0.0.0.0"),
-    port=int(os.environ.get("MCP_PORT", "8000")),
+    name="MCP Server - LINES",
+    host=conf.MCP_HOST,
+    port=conf.MCP_PORT
 )
 
 
