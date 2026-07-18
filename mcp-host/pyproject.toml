@@ -1,7 +1,7 @@
 [project]
-name = "mcp-server"
+name = "mcp-host"
 version = "0.1.0"
-description = "MCP Server which interacts with CVG and SQL databases, and provides an API for the MCP Host."
+description = "MCP Host which interacts with the MCP Server and provides an interface for users to interact with the system."
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.139.2",
