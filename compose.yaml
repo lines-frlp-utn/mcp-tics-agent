@@ -5,7 +5,7 @@ services:
       context: ./mcp-host
       dockerfile: Dockerfile
     environment:
-      - LLM_URL=${LLM_URL}
+      - LLM_URL=${LLM_URL:-http://llm:8000}
       - MCP_SERVER_OUTLOOK_URL=${MCP_SERVER_OUTLOOK_URL:-http://mcp-server-outlook:8000/mcp}
       - MCP_SERVER_LINES_URL=${MCP_SERVER_LINES_URL:-http://mcp-server-lines:8000/mcp}
     ports:
