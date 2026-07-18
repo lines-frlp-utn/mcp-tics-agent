@@ -19,6 +19,7 @@ services:
       timeout: 20s
       retries: 3
     restart: ${RESTART_POLICY:-no}
+
   mcp-server:
     container_name: mcp-server
     build:
