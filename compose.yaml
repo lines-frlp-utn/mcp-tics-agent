@@ -1,0 +1,17 @@
+services:
+  mcp-server:
+    container_name: mcp-server
+    build:
+      context: ./mcp-server
+      dockerfile: Dockerfile
+    environment:
+      - MCP_HOST=${MCP_HOST:-0.0.0.0}
+      - MCP_PORT=${MCP_PORT:-8000}
+    ports:
+      - 8000:8000
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/').read()"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    restart: ${RESTART_POLICY:-no}
