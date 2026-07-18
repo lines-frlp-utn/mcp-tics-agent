@@ -8,4 +8,5 @@ dependencies = [
     "fastapi>=0.139.2",
     "mcp[cli]>=1.28.1",
     "pydantic-settings>=2.14.2",
+    "uvicorn>=0.51.0",
 ]
