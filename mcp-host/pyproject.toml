@@ -1,0 +1,11 @@
+[project]
+name = "mcp-host"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.139.2",
+    "mcp[cli]>=1.28.1",
+    "pydantic-settings>=2.14.2",
+]
