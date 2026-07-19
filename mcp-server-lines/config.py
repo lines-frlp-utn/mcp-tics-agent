@@ -11,8 +11,8 @@ class Settings(BaseSettings):
     )
 
     # Configurations for the MCP server, loaded from environment variables
-    MCP_HOST: str = Field(..., validation_alias="MCP_HOST")
-    MCP_PORT: int = Field(..., validation_alias="MCP_PORT")
+    MCP_HOST_LINES: str = Field(..., validation_alias="MCP_HOST")
+    MCP_PORT_LINES: int = Field(..., validation_alias="MCP_PORT")
 
 
 conf = Settings()

@@ -7,8 +7,8 @@ from config import conf
 # port, allowing connections from other Docker containers
 mcp = FastMCP(
     name="MCP Server - LINES",
-    host=conf.MCP_HOST,
-    port=conf.MCP_PORT
+    host=conf.MCP_HOST_LINES,
+    port=conf.MCP_PORT_LINES
 )
 
 

@@ -20,14 +20,14 @@ services:
       retries: 3
     restart: ${RESTART_POLICY:-no}
 
-  mcp-server:
-    container_name: mcp-server
+  mcp-server-lines:
+    container_name: mcp-server-lines
     build:
-      context: ./mcp-server
+      context: ./mcp-server-lines
       dockerfile: Dockerfile
     environment:
-      - MCP_HOST=${MCP_HOST:-0.0.0.0}
-      - MCP_PORT=${MCP_PORT:-8000}
+      - MCP_HOST_LINES=${MCP_HOST_LINES:-0.0.0.0}
+      - MCP_PORT_LINES=${MCP_PORT_LINES:-8000}
     ports:
       - 8000:8000
     networks:
