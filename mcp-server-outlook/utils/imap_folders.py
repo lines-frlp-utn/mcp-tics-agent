@@ -1,10 +1,15 @@
 import imaplib
 import logging
+import os
+import sys
 
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 log = logging.getLogger(__name__)
 
+from utils.imap_connection import connect
 
-def create_folder(client: imaplib.IMAP4_SSL, folder_name: str) -> None:
+
+def create_folder(folder_name: str) -> None:
     """
     Creates a folder. Does not fail if it already exists.
     
@@ -19,21 +24,24 @@ def create_folder(client: imaplib.IMAP4_SSL, folder_name: str) -> None:
     -------
     None
     """
+    client = connect()
+
     status, resp = client.create(folder_name)
+    
     if status == "OK":
         log.info(f"Folder '{folder_name}' created")
     else:
         log.info(f"Folder '{folder_name}': {resp}")
+    
+    client.logout()
 
 
-def move_mail(client: imaplib.IMAP4_SSL, uid: str, folder_source: str, folder_destination: str) -> bool:
+def move_email(uid: str, folder_source: str, folder_destination: str) -> bool:
     """
-    Move a mail. Tries MOVE, with fallback to COPY + DELETE.
+    Move an email. Tries MOVE, with fallback to COPY + DELETE.
     
     Parameters
     ----------
-    client : imaplib.IMAP4_SSL
-        IMAP client instance.
     uid : str
         UID of the email to move.
     folder_source : str
@@ -46,6 +54,8 @@ def move_mail(client: imaplib.IMAP4_SSL, uid: str, folder_source: str, folder_de
     bool
         True if the mail was moved successfully, False otherwise.
     """
+    client = connect()
+
     client.select(folder_source, readonly=False)
 
     try:
@@ -57,12 +67,12 @@ def move_mail(client: imaplib.IMAP4_SSL, uid: str, folder_source: str, folder_de
         print("RESP:", resp)
 
         if status == "OK":
-            # Verificamos si el mail sigue existiendo
+            # Verifies if the mail still exists
             s2, r2 = client.uid("SEARCH", None, f"UID {uid}")
             print("SEARCH luego del MOVE:", s2, r2)
             return True
     except imaplib.IMAP4.error as e:
-        log.warning(f"MOVE no soportado: {e}")
+        log.warning(f"MOVE not supported: {e}")
 
     status, _ = client.uid("COPY", uid, folder_destination)
     log.info(f"COPY status: {status}")
@@ -71,5 +81,7 @@ def move_mail(client: imaplib.IMAP4_SSL, uid: str, folder_source: str, folder_de
 
     client.uid("STORE", uid, "+FLAGS", "(\\Deleted)")
     client.expunge()
+
+    client.logout()
 
     return True
