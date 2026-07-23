@@ -39,8 +39,7 @@ services:
       timeout: 20s
       retries: 3
     restart: ${RESTART_POLICY:-no}
-    
-  
+
   mcp-server-outlook:
     container_name: mcp-server-outlook
     build:
@@ -64,6 +63,8 @@ services:
       timeout: 20s
       retries: 3
     restart: ${RESTART_POLICY:-no}
+
+
 networks:
   public-network:
     driver: bridge
