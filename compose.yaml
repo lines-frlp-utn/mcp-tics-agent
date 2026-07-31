@@ -9,6 +9,26 @@ services:
       - MCP_SERVER_OUTLOOK_URL=${MCP_SERVER_OUTLOOK_URL:-http://mcp-server-outlook:8000/mcp}
       - MCP_SERVER_LINES_URL=${MCP_SERVER_LINES_URL:-http://mcp-server-lines:8000/mcp}
     ports:
+      - 8000:8000
+    networks:
+      - public-network
+      - internal-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/').read()"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    restart: ${RESTART_POLICY:-no}
+
+  mcp-server-lines:
+    container_name: mcp-server-lines
+    build:
+      context: ./mcp-server-lines
+      dockerfile: Dockerfile
+    environment:
+      - MCP_HOST_LINES=${MCP_HOST_LINES:-0.0.0.0}
+      - MCP_PORT_LINES=${MCP_PORT_LINES:-8000}
+    ports:
       - 8001:8000
     networks:
       - public-network
@@ -20,16 +40,20 @@ services:
       retries: 3
     restart: ${RESTART_POLICY:-no}
 
-  mcp-server:
-    container_name: mcp-server
+  mcp-server-outlook:
+    container_name: mcp-server-outlook
     build:
-      context: ./mcp-server
+      context: ./mcp-server-outlook
       dockerfile: Dockerfile
     environment:
-      - MCP_HOST=${MCP_HOST:-0.0.0.0}
-      - MCP_PORT=${MCP_PORT:-8000}
+      - TENANT_ID=${TENANT_ID}
+      - CLIENT_ID=${CLIENT_ID}
+      - CLIENT_SECRET=${CLIENT_SECRET}
+      - EMAIL_ACCOUNT=${EMAIL_ACCOUNT}
+      - MCP_HOST_OUTLOOK=${MCP_HOST_OUTLOOK:-0.0.0.0}
+      - MCP_PORT_OUTLOOK=${MCP_PORT_OUTLOOK:-8000}
     ports:
-      - 8000:8000
+      - 8002:8000
     networks:
       - public-network
       - internal-network
@@ -39,7 +63,7 @@ services:
       timeout: 20s
       retries: 3
     restart: ${RESTART_POLICY:-no}
-    
+
 
 networks:
   public-network:
