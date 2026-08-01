@@ -108,9 +108,52 @@ def parse_message(uid: bytes, raw: bytes) -> dict:
     }
 
 
-def read(folder: str, criterion: str, limit: int) -> list[dict]:
+def read_by_uid(folder: str, uid: str) -> dict:
     """
-    Reads emails from a specified folder based on a search criterion and limit.
+    Reads a single email message from a folder by its UID.
+
+    Parameters
+    ----------
+    folder : str
+        The folder from which to read the email (e.g., "INBOX", "CVG").
+    uid : str
+        The unique identifier of the email message to fetch.
+
+    Returns
+    -------
+    dict
+        The extracted information of the email.
+    """
+    client = connect()
+
+    try:
+        client.select(folder, readonly=True)
+
+        status, raw = client.uid("FETCH", uid, "(RFC822)")
+
+        if status != "OK":
+            raise RuntimeError(
+                f"Error fetching mail UID {uid} in {folder}"
+            )
+
+        for item in raw:
+            if isinstance(item, tuple) and item[1]:
+                return parse_message(uid.encode(), item[1])
+
+        raise RuntimeError(
+            f"Mail UID {uid} not found in {folder}"
+        )
+
+    finally:
+        try:
+            client.logout()
+        except Exception:
+            pass
+
+
+def search(folder: str, criterion: str, limit: int) -> list[dict]:
+    """
+    Searches emails in a specified folder based on a search criterion and limit.
     
     Parameters
     ----------
@@ -197,7 +240,7 @@ def read_unread_items(
     list[dict]
         A list of dictionaries containing the extracted information of the unread emails.
     """
-    return read(folder, "UNSEEN", limit)
+    return search(folder, "UNSEEN", limit)
 
 
 def read_all(
@@ -219,4 +262,4 @@ def read_all(
     list[dict]
         A list of dictionaries containing the extracted information of the emails.
     """
-    return read(folder, "ALL", limit)
+    return search(folder, "ALL", limit)
