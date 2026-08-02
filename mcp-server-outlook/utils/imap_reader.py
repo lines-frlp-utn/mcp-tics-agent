@@ -169,6 +169,9 @@ def search(folder: str, criterion: str, limit: int) -> list[dict]:
     list[dict]
         A list of dictionaries containing the extracted information of the emails.
     """
+    if limit <= 0:
+        return []
+    
     mails = []
     client = connect()
 
