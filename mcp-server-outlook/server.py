@@ -9,7 +9,8 @@ from utils.imap_reader import (
     decodificate_header as decodificate_header_util,
     extract_body as extract_body_util,
     parse_message as parse_message_util,
-    read as read_util,
+    read_by_uid as read_by_uid_util,
+    search as search_emails_util,
     read_unread_items as read_unread_items_util,
     read_all as read_all_util,
 )
@@ -52,7 +53,12 @@ def parse_message(message) -> dict:
 @mcp.tool()
 def read(folder: str, uid: str) -> dict:
     """Read an email message by folder and UID."""
-    return read_util(folder=folder, uid=uid)
+    return read_by_uid_util(folder=folder, uid=uid)
+
+@mcp.tool()
+def search_emails(folder: str, criterion: str, limit: int) -> list[dict]:
+    """Search emails in a folder matching an IMAP search criterion (e.g. 'UNSEEN', 'ALL'), up to a limit."""
+    return search_emails_util(folder=folder, criterion=criterion, limit=limit)
 
 @mcp.tool()
 def read_unread_items(folder: str) -> list[dict]:
