@@ -1,5 +1,10 @@
+"""OAuth2-authenticated IMAP connection handling for Exchange Online."""
+
 import imaplib
 import logging
+from contextlib import contextmanager
+from typing import Iterator
+
 import msal
 
 from config import conf
@@ -19,6 +24,11 @@ def _get_token() -> str:
     -------
     str
         OAuth2 access token for the Outlook IMAP server.
+
+    Raises
+    ------
+    RuntimeError
+        If MSAL fails to acquire an access token.
     """
     app = msal.ConfidentialClientApplication(
         conf.CLIENT_ID,
@@ -62,3 +72,24 @@ def connect() -> imaplib.IMAP4_SSL:
     log.info("IMAP connection established successfully.")
 
     return client
+
+
+@contextmanager
+def imap_session() -> Iterator[imaplib.IMAP4_SSL]:
+    """
+    Opens an IMAP connection and guarantees it gets closed afterwards.
+
+    Yields
+    ------
+    imaplib.IMAP4_SSL
+        Connected IMAP client instance.
+    """
+    client = connect()
+
+    try:
+        yield client
+    finally:
+        try:
+            client.logout()
+        except Exception:
+            log.warning("Failed to logout IMAP client cleanly", exc_info=True)

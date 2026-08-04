@@ -1,18 +1,14 @@
 from mcp.server.fastmcp import FastMCP
 
 from config import conf
+from utils.imap_connection import imap_session
 from utils.imap_folders import (
     create_folder as create_folder_util,
     move_email as move_email_util
 )
 from utils.imap_reader import (
-    decodificate_header as decodificate_header_util,
-    extract_body as extract_body_util,
-    parse_message as parse_message_util,
     read_by_uid as read_by_uid_util,
     search as search_emails_util,
-    read_unread_items as read_unread_items_util,
-    read_all as read_all_util,
 )
 
 
@@ -25,47 +21,40 @@ mcp = FastMCP(
 )
 
 
+# Folder management tools
 @mcp.tool()
 def create_folder(folder_name: str) -> None:
     """Create a folder."""
-    create_folder_util(folder_name=folder_name)
+    with imap_session() as client:
+        create_folder_util(client, folder_name=folder_name)
 
 @mcp.tool()
 def move_email_to_folder(uid: str, folder_source: str, folder_destination: str) -> bool:
     """Move an email to a different folder."""
-    return move_email_util(uid=uid, folder_source=folder_source, folder_destination=folder_destination)
+    with imap_session() as client:
+        return move_email_util(client, uid=uid, folder_source=folder_source, folder_destination=folder_destination)
 
-@mcp.tool()
-def decodificate_header(value: str | None) -> str:
-    """Decodificate an email header."""
-    return decodificate_header_util(value=value)
-
-@mcp.tool()
-def extract_body(message) -> str:   
-    """Extract the body of an email message."""
-    return extract_body_util(message=message)
-
-@mcp.tool()
-def parse_message(message) -> dict:
-    """Parse an email message into a dictionary."""
-    return parse_message_util(message=message)
-
+# Email reading tools
 @mcp.tool()
 def read(folder: str, uid: str) -> dict:
     """Read an email message by folder and UID."""
-    return read_by_uid_util(folder=folder, uid=uid)
+    with imap_session() as client:
+        return read_by_uid_util(client, folder=folder, uid=uid)
 
 @mcp.tool()
 def search_emails(folder: str, criterion: str, limit: int) -> list[dict]:
     """Search emails in a folder matching an IMAP search criterion (e.g. 'UNSEEN', 'ALL'), up to a limit."""
-    return search_emails_util(folder=folder, criterion=criterion, limit=limit)
+    with imap_session() as client:
+        return search_emails_util(client, folder=folder, criterion=criterion, limit=limit)
 
 @mcp.tool()
-def read_unread_items(folder: str) -> list[dict]:
-    """Read all unread email messages in a folder."""
-    return read_unread_items_util(folder=folder)
+def read_unread_items(folder: str = "INBOX", limit: int = 10) -> list[dict]:
+    """Read the unread email messages in a folder."""
+    with imap_session() as client:
+        return search_emails_util(client, criterion="UNSEEN", folder=folder, limit=limit)
 
 @mcp.tool()
-def read_all(folder: str) -> list[dict]:
+def read_all(folder: str = "INBOX", limit: int = 10) -> list[dict]:
     """Read all email messages in a folder."""
-    return read_all_util(folder=folder)
+    with imap_session() as client:
+        return search_emails_util(client, criterion="ALL", folder=folder, limit=limit)

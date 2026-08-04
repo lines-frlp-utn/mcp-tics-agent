@@ -1,119 +1,23 @@
+"""Utilities for reading and parsing emails from an IMAP mailbox."""
+
 from email.header import decode_header as _decode_header
+from email.message import Message
 import email
 import logging
-
-from utils.imap_connection import connect
+import imaplib
 
 
 log = logging.getLogger(__name__)
 
 
-def decodificate_header(value: str | None) -> str:
-    """
-    Decodes an email header value.
-    
-    Parameters
-    ----------
-    value : str | None
-        The header value to decode.
-
-    Returns
-    -------
-    str
-        The decoded header value.
-    """
-    if not value:
-        return ""
-
-    result = []
-
-    for part, encoding in _decode_header(value):
-        if isinstance(part, bytes):
-            result.append(
-                part.decode(
-                    encoding or "utf-8",
-                    errors="replace"
-                )
-            )
-        else:
-            result.append(part)
-
-    return "".join(result)
-
-
-def extract_body(message) -> str:
-    """
-    Extracts the body of an email message.
-    
-    Parameters
-    ----------
-    message : email.message.Message
-        The email message object.
-
-    Returns
-    -------
-    str
-        The extracted body of the email.
-    """
-    if message.is_multipart():
-        for part in message.walk():
-            if (
-                part.get_content_type() == "text/plain"
-                and part.get_content_disposition() != "attachment"
-            ):
-                payload = part.get_payload(decode=True)
-
-                if payload:
-                    return payload.decode(
-                        part.get_content_charset() or "utf-8",
-                        errors="replace",
-                    )
-
-    else:
-        payload = message.get_payload(decode=True)
-
-        if payload:
-            return payload.decode(
-                message.get_content_charset() or "utf-8",
-                errors="replace",
-            )
-
-    return ""
-
-
-def parse_message(uid: bytes, raw: bytes) -> dict:
-    """
-    Parses an email message and extracts relevant information.
-    
-    Parameters
-    ----------
-    uid : bytes
-        The unique identifier of the email message.
-    raw : bytes
-        The raw email message in bytes.
-
-    Returns
-    -------
-    dict
-        The extracted information of the email.
-    """
-    message = email.message_from_bytes(raw)
-
-    return {
-        "mail_id": uid.decode(),
-        "subject": decodificate_header(message.get("Subject")),
-        "sender": decodificate_header(message.get("From")),
-        "date": decodificate_header(message.get("Date")),
-        "body": extract_body(message),
-    }
-
-
-def read_by_uid(folder: str, uid: str) -> dict:
+def read_by_uid(client: imaplib.IMAP4_SSL, folder: str, uid: str) -> dict:
     """
     Reads a single email message from a folder by its UID.
 
     Parameters
     ----------
+    client : imaplib.IMAP4_SSL
+        IMAP client instance.
     folder : str
         The folder from which to read the email (e.g., "INBOX", "CVG").
     uid : str
@@ -123,8 +27,12 @@ def read_by_uid(folder: str, uid: str) -> dict:
     -------
     dict
         The extracted information of the email.
+
+    Raises
+    ------
+    RuntimeError
+        If the IMAP fetch fails, or no email with the given UID exists in the folder.
     """
-    client = connect()
 
     try:
         client.select(folder, readonly=True)
@@ -138,42 +46,48 @@ def read_by_uid(folder: str, uid: str) -> dict:
 
         for item in raw:
             if isinstance(item, tuple) and item[1]:
-                return parse_message(uid.encode(), item[1])
+                return _parse_message(uid.encode(), item[1])
 
         raise RuntimeError(
             f"Mail UID {uid} not found in {folder}"
         )
-
-    finally:
-        try:
-            client.logout()
-        except Exception:
-            pass
+    
+    except Exception as e:
+        log.error(f"Error reading mail UID {uid} in {folder}: {e}")
+        raise
 
 
-def search(folder: str, criterion: str, limit: int) -> list[dict]:
+def search(client: imaplib.IMAP4_SSL, folder: str, criterion: str, limit: int) -> list[dict]:
     """
     Searches emails in a specified folder based on a search criterion and limit.
-    
+
+    If `limit` is zero or negative, returns an empty list without querying the server.
+
     Parameters
     ----------
+    client : imaplib.IMAP4_SSL
+        IMAP client instance.
     folder : str
         The folder from which to read emails (e.g., "CVG", "Mail_Institucional").
     criterion : str
         The search criterion for fetching emails (e.g., "UNSEEN", "ALL").
     limit : int
-        The maximum number of emails to fetch.
+        The maximum number of emails to fetch. Non-positive values short-circuit to an empty list.
 
     Returns
     -------
     list[dict]
         A list of dictionaries containing the extracted information of the emails.
+
+    Raises
+    ------
+    RuntimeError
+        If the IMAP search request fails.
     """
     if limit <= 0:
         return []
     
     mails = []
-    client = connect()
 
     try:
         client.select(folder, readonly=True)
@@ -212,57 +126,112 @@ def search(folder: str, criterion: str, limit: int) -> list[dict]:
             for item in raw:
                 if isinstance(item, tuple) and item[1]:
                     mails.append(
-                        parse_message(uid, item[1])
+                        _parse_message(uid, item[1])
                     )
 
-    finally:
-        try:
-            client.logout()
-        except Exception:
-            pass
+    except Exception as e:
+        log.error(f"Error searching mails ({criterion}) in {folder}: {e}")
+        raise
 
     return mails
 
 
-def read_unread_items(
-    folder: str = "INBOX",
-    limit: int = 10
-) -> list[dict]:
+# Helper functions
+def _decodificate_header(value: str | None) -> str:
     """
-    Returns unread emails without marking them as read.
+    Decodes an email header value.
     
     Parameters
     ----------
-    folder : str
-        The folder from which to read emails (e.g., "CVG", "Mail_Institucional").
-    limit : int
-        The maximum number of emails to fetch.
+    value : str | None
+        The header value to decode.
 
     Returns
     -------
-    list[dict]
-        A list of dictionaries containing the extracted information of the unread emails.
+    str
+        The decoded header value.
     """
-    return search(folder, "UNSEEN", limit)
+    if not value:
+        return ""
+
+    result = []
+
+    for part, encoding in _decode_header(value):
+        if isinstance(part, bytes):
+            result.append(
+                part.decode(
+                    encoding or "utf-8",
+                    errors="replace"
+                )
+            )
+        else:
+            result.append(part)
+
+    return "".join(result)
 
 
-def read_all(
-    folder: str = "INBOX",
-    limit: int = 10
-) -> list[dict]:
+def _extract_body(message: Message) -> str:
     """
-    Returns the latest emails from a folder.
+    Extracts the body of an email message.
+
+    Parameters
+    ----------
+    message : Message
+        The email message object.
+
+    Returns
+    -------
+    str
+        The extracted body of the email.
+    """
+    if message.is_multipart():
+        for part in message.walk():
+            if (
+                part.get_content_type() == "text/plain"
+                and part.get_content_disposition() != "attachment"
+            ):
+                payload = part.get_payload(decode=True)
+
+                if payload:
+                    return payload.decode(
+                        part.get_content_charset() or "utf-8",
+                        errors="replace",
+                    )
+
+    else:
+        payload = message.get_payload(decode=True)
+
+        if payload:
+            return payload.decode(
+                message.get_content_charset() or "utf-8",
+                errors="replace",
+            )
+
+    return ""
+
+
+def _parse_message(uid: bytes, raw: bytes) -> dict:
+    """
+    Parses an email message and extracts relevant information.
     
     Parameters
     ----------
-    folder : str
-        The folder from which to read emails (e.g., "INBOX", "CVG", "Mail_Institucional").
-    limit : int
-        The maximum number of emails to fetch.
+    uid : bytes
+        The unique identifier of the email message.
+    raw : bytes
+        The raw email message in bytes.
 
     Returns
     -------
-    list[dict]
-        A list of dictionaries containing the extracted information of the emails.
+    dict
+        The extracted information of the email.
     """
-    return search(folder, "ALL", limit)
+    message = email.message_from_bytes(raw)
+
+    return {
+        "mail_id": uid.decode(),
+        "subject": _decodificate_header(message.get("Subject")),
+        "sender": _decodificate_header(message.get("From")),
+        "date": _decodificate_header(message.get("Date")),
+        "body": _extract_body(message),
+    }
