@@ -6,10 +6,8 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 log = logging.getLogger(__name__)
 
-from utils.imap_connection import connect
 
-
-def create_folder(folder_name: str) -> None:
+def create_folder(client: imaplib.IMAP4_SSL, folder_name: str) -> None:
     """
     Creates a folder. Does not fail if it already exists.
     
@@ -24,24 +22,22 @@ def create_folder(folder_name: str) -> None:
     -------
     None
     """
-    client = connect()
-
     status, resp = client.create(folder_name)
     
     if status == "OK":
         log.info(f"Folder '{folder_name}' created")
     else:
         log.info(f"Folder '{folder_name}': {resp}")
-    
-    client.logout()
 
 
-def move_email(uid: str, folder_source: str, folder_destination: str) -> bool:
+def move_email(client: imaplib.IMAP4_SSL, uid: str, folder_source: str, folder_destination: str) -> bool:
     """
     Move an email. Tries MOVE, with fallback to COPY + DELETE.
     
     Parameters
     ----------
+    client : imaplib.IMAP4_SSL
+            IMAP client instance.
     uid : str
         UID of the email to move.
     folder_source : str
@@ -54,8 +50,6 @@ def move_email(uid: str, folder_source: str, folder_destination: str) -> bool:
     bool
         True if the mail was moved successfully, False otherwise.
     """
-    client = connect()
-
     client.select(folder_source, readonly=False)
 
     try:
@@ -81,7 +75,5 @@ def move_email(uid: str, folder_source: str, folder_destination: str) -> bool:
 
     client.uid("STORE", uid, "+FLAGS", "(\\Deleted)")
     client.expunge()
-
-    client.logout()
 
     return True

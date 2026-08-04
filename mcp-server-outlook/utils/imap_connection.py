@@ -1,5 +1,8 @@
 import imaplib
 import logging
+from contextlib import contextmanager
+from typing import Iterator
+
 import msal
 
 from config import conf
@@ -62,3 +65,24 @@ def connect() -> imaplib.IMAP4_SSL:
     log.info("IMAP connection established successfully.")
 
     return client
+
+
+@contextmanager
+def imap_session() -> Iterator[imaplib.IMAP4_SSL]:
+    """
+    Opens an IMAP connection and guarantees it gets closed afterwards.
+
+    Yields
+    ------
+    imaplib.IMAP4_SSL
+        Connected IMAP client instance.
+    """
+    client = connect()
+
+    try:
+        yield client
+    finally:
+        try:
+            client.logout()
+        except Exception:
+            log.warning("Failed to logout IMAP client cleanly", exc_info=True)
