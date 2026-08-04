@@ -12,7 +12,7 @@ El sistema se basa en un desacoplamiento completo de responsabilidades mediante 
 
 ### Componentes Clave:
 1. **Model & Agent Host (`mcp-host`):** El cerebro del sistema. Es un servicio **FastAPI** que embebe el **MCP Client** y actúa como traductor de protocolo hacia los distintos MCP Servers. Actualmente expone un endpoint de verificación de conectividad (`/demo/lines/add`) contra el server LINES; ya declara configuración para conectarse también al server de Outlook (`MCP_SERVER_OUTLOOK_URL`), pero todavía no la usa en código. El bucle de razonamiento contra el LLM (orquestación de intención, selección de herramientas, etc.) está pendiente de implementación.
-2. **MCP Outlook Server (`mcp-server-outlook`):** Desarrollado en Python con **FastMCP** (montado sobre **FastAPI**). Expone sus herramientas vía Streamable HTTP en `/mcp` y provee acceso a una casilla de Exchange Online mediante **IMAP** (`imaplib`), autenticado con **OAuth2** (flujo client-credentials vía **MSAL**), sin depender de la API Graph de Microsoft. Actualmente expone 8 tools: `create_folder`, `move_email_to_folder`, `read`, `read_unread_items`, `read_all`, `decodificate_header`, `extract_body` y `parse_message`.
+2. **MCP Outlook Server (`mcp-server-outlook`):** Desarrollado en Python con **FastMCP** (montado sobre **FastAPI**). Expone sus herramientas vía Streamable HTTP en `/mcp` y provee acceso a una casilla de Exchange Online mediante **IMAP** (`imaplib`), autenticado con **OAuth2** (flujo client-credentials vía **MSAL**), sin depender de la API Graph de Microsoft. Actualmente expone 6 tools: `create_folder`, `move_email_to_folder`, `read` (por UID), `search_emails` (por criterio IMAP + límite), `read_unread_items` y `read_all`. La conexión IMAP se abre y cierra una única vez por invocación de tool, vía un context manager (`imap_session`) centralizado en `utils/imap_connection.py`.
 3. **MCP LINES Server (`mcp-server-lines`):** Desarrollado en Python con **FastMCP** (montado sobre **FastAPI**). Expone sus herramientas vía Streamable HTTP en `/mcp` y provee acceso controlado a la base de datos transaccional SQL y servicios de aprovisionamiento de IT. Actualmente expone una tool de ejemplo (`add`) y un resource de ejemplo (`greeting://{name}`) mientras se desarrollan las herramientas de negocio reales.
 4. **LLM Local (`phi-4-mini-instruct`):** Se serviría vía **vLLM** con OpenAI-compatible API, consumido por el Host para el razonamiento del agente. **Pendiente de implementación:** hoy no existe servicio en `compose.yaml` ni código que lo invoque; solo hay variables de entorno de referencia (`LLM_URL`, `HUGGING_FACE_HUB_TOKEN`). Requeriría GPU (NVIDIA) para correr.
 
@@ -20,7 +20,7 @@ El sistema se basa en un desacoplamiento completo de responsabilidades mediante 
 
 ## 🔄 Flujo de Trabajo Operativo (Diseño objetivo)
 
-> Este flujo describe el comportamiento objetivo del agente una vez completada la integración de los tres componentes. Hoy está validada la conectividad `mcp-host` ↔ `mcp-server-lines`, y el `mcp-server-outlook` ya expone de forma standalone sus 8 tools de lectura/gestión de correo. Lo que falta para completar este flujo es que el Host invoque esas tools de Outlook (paso 1) y que exista razonamiento contra un LLM (pasos 2, 3 y 5) — hoy ambas piezas están pendientes de implementación.
+> Este flujo describe el comportamiento objetivo del agente una vez completada la integración de los tres componentes. Hoy está validada la conectividad `mcp-host` ↔ `mcp-server-lines`, y el `mcp-server-outlook` ya expone de forma standalone sus 6 tools de lectura/gestión de correo. Lo que falta para completar este flujo es que el Host invoque esas tools de Outlook (paso 1) y que exista razonamiento contra un LLM (pasos 2, 3 y 5) — hoy ambas piezas están pendientes de implementación.
 
 1. **Lectura y Monitoreo:** El Agente Host le ordena al servidor MCP de Outlook buscar correos no leídos con intenciones de soporte técnico.
 2. **Análisis de Intención:** El LLM local analiza la consulta (Ej: *"Hola, necesito dar de alta una licencia de AutoCAD para el nuevo diseñador"*).
@@ -114,11 +114,11 @@ Y en la UI configurá **Transport Type** en `Streamable HTTP` y la URL en `http:
 El servidor de Outlook queda expuesto en `http://localhost:8002/mcp` y requiere que las credenciales de Azure AD (`TENANT_ID`, `CLIENT_ID`, `CLIENT_SECRET`, `EMAIL_ACCOUNT`) estén correctamente configuradas en el `.env`, ya que sus tools se conectan de verdad a la casilla de Exchange Online vía IMAP.
 
 ```bash
-# Listar las 8 tools disponibles (create_folder, move_email_to_folder, read, read_unread_items, read_all, decodificate_header, extract_body, parse_message)
+# Listar las 6 tools disponibles (create_folder, move_email_to_folder, read, search_emails, read_unread_items, read_all)
 npx @modelcontextprotocol/inspector --cli http://localhost:8002/mcp --transport http --method tools/list
 
 # Leer los últimos 5 correos no leídos de INBOX
-npx @modelcontextprotocol/inspector --cli http://localhost:8002/mcp --transport http --method tools/call --tool-name read_unread_items --tool-arg folder=INBOX
+npx @modelcontextprotocol/inspector --cli http://localhost:8002/mcp --transport http --method tools/call --tool-name read_unread_items --tool-arg folder=INBOX --tool-arg limit=5
 ```
 
 ### 5. Testear la comunicación mcp-host ↔ mcp-server-lines
