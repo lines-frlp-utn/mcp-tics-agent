@@ -1,3 +1,5 @@
+"""Utilities for creating IMAP folders and moving emails between them."""
+
 import imaplib
 import logging
 import os
@@ -37,7 +39,7 @@ def move_email(client: imaplib.IMAP4_SSL, uid: str, folder_source: str, folder_d
     Parameters
     ----------
     client : imaplib.IMAP4_SSL
-            IMAP client instance.
+        IMAP client instance.
     uid : str
         UID of the email to move.
     folder_source : str

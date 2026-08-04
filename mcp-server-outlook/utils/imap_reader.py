@@ -1,4 +1,7 @@
+"""Utilities for reading and parsing emails from an IMAP mailbox."""
+
 from email.header import decode_header as _decode_header
+from email.message import Message
 import email
 import logging
 import imaplib
@@ -14,7 +17,7 @@ def read_by_uid(client: imaplib.IMAP4_SSL, folder: str, uid: str) -> dict:
     Parameters
     ----------
     client : imaplib.IMAP4_SSL
-            IMAP client instance.
+        IMAP client instance.
     folder : str
         The folder from which to read the email (e.g., "INBOX", "CVG").
     uid : str
@@ -24,6 +27,11 @@ def read_by_uid(client: imaplib.IMAP4_SSL, folder: str, uid: str) -> dict:
     -------
     dict
         The extracted information of the email.
+
+    Raises
+    ------
+    RuntimeError
+        If the IMAP fetch fails, or no email with the given UID exists in the folder.
     """
 
     try:
@@ -52,22 +60,29 @@ def read_by_uid(client: imaplib.IMAP4_SSL, folder: str, uid: str) -> dict:
 def search(client: imaplib.IMAP4_SSL, folder: str, criterion: str, limit: int) -> list[dict]:
     """
     Searches emails in a specified folder based on a search criterion and limit.
-    
+
+    If `limit` is zero or negative, returns an empty list without querying the server.
+
     Parameters
     ----------
     client : imaplib.IMAP4_SSL
-            IMAP client instance.
+        IMAP client instance.
     folder : str
         The folder from which to read emails (e.g., "CVG", "Mail_Institucional").
     criterion : str
         The search criterion for fetching emails (e.g., "UNSEEN", "ALL").
     limit : int
-        The maximum number of emails to fetch.
+        The maximum number of emails to fetch. Non-positive values short-circuit to an empty list.
 
     Returns
     -------
     list[dict]
         A list of dictionaries containing the extracted information of the emails.
+
+    Raises
+    ------
+    RuntimeError
+        If the IMAP search request fails.
     """
     if limit <= 0:
         return []
@@ -155,13 +170,13 @@ def _decodificate_header(value: str | None) -> str:
     return "".join(result)
 
 
-def _extract_body(message) -> str:
+def _extract_body(message: Message) -> str:
     """
     Extracts the body of an email message.
-    
+
     Parameters
     ----------
-    message : email.message.Message
+    message : Message
         The email message object.
 
     Returns

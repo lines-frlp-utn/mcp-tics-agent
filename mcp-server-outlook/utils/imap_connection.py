@@ -1,3 +1,5 @@
+"""OAuth2-authenticated IMAP connection handling for Exchange Online."""
+
 import imaplib
 import logging
 from contextlib import contextmanager
@@ -22,6 +24,11 @@ def _get_token() -> str:
     -------
     str
         OAuth2 access token for the Outlook IMAP server.
+
+    Raises
+    ------
+    RuntimeError
+        If MSAL fails to acquire an access token.
     """
     app = msal.ConfidentialClientApplication(
         conf.CLIENT_ID,
