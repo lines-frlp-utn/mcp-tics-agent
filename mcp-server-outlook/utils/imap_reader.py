@@ -43,12 +43,10 @@ def read_by_uid(client: imaplib.IMAP4_SSL, folder: str, uid: str) -> dict:
         raise RuntimeError(
             f"Mail UID {uid} not found in {folder}"
         )
-
-    finally:
-        try:
-            client.logout()
-        except Exception:
-            pass
+    
+    except Exception as e:
+        log.error(f"Error reading mail UID {uid} in {folder}: {e}")
+        raise
 
 
 def search(client: imaplib.IMAP4_SSL, folder: str, criterion: str, limit: int) -> list[dict]:
@@ -116,11 +114,9 @@ def search(client: imaplib.IMAP4_SSL, folder: str, criterion: str, limit: int) -
                         _parse_message(uid, item[1])
                     )
 
-    finally:
-        try:
-            client.logout()
-        except Exception:
-            pass
+    except Exception as e:
+        log.error(f"Error searching mails ({criterion}) in {folder}: {e}")
+        raise
 
     return mails
 
